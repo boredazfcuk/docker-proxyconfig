@@ -82,7 +82,7 @@ Configure(){
       echo
       echo '   // Configure destinations'
       echo "   squidproxy = \"PROXY ${host_ip_address}:3128\";"
-      echo '   blackhole = "PROXY 127.0.0.1:8008";'
+      echo '   blackhole = "PROXY 127.0.0.1:3131";'
       echo '   direct = "DIRECT";'
       echo
       echo '   // Convert URLs to lowercase due to case-sensitive matching'
