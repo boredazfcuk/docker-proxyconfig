@@ -1,3 +1,7 @@
+20200218
+
+ - Change: direct_domains.txt and blocked_domains.txt now only passes first column so that each domain can have an in-line comment to assist with identification at a later date
+
 20200211
 
  - Release: Container designed to sit alongside my Squid proxy. It allows users to download Squid's encryption certificate from a simple web page. It also shows the proxy pac file that is use and serves it to clients. It also shows the list of remote domains configured to be bypassed and a separate list of local domains to be bypassed

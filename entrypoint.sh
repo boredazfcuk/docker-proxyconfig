@@ -120,12 +120,12 @@ Configure(){
          direct_domains="$(cat "${home_dir}/direct_domains.txt")"
          direct_domains_line_terminator=" ||"
          direct_domains_counter=0
-         direct_domains_total="$(echo -n "$direct_domains" | grep -c '^')"
+         direct_domains_total="$(echo -n "$direct_domains" | grep -c '^' | awk '{print $1}')"
          echo '   if ('
          for direct_domain in ${direct_domains}; do
             direct_domains_counter=$((direct_domains_counter + 1))
             if [ "${direct_domains_counter}" -eq "${direct_domains_total}" ]; then unset direct_domains_line_terminator; fi
-            echo "      dnsDomainIs(host, \"${direct_domain}\") || shExpMatch(host, \"*.${direct_domain}\")${direct_domains_line_terminator}"
+            echo "      dnsDomainIs(host, \"$(echo ${direct_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${direct_domain} | awk '{print $1}')\")${direct_domains_line_terminator}"
          done
          echo '      ) return direct;'
       fi
@@ -140,7 +140,7 @@ Configure(){
          for blocked_domain in ${blocked_domains}; do
             blocked_domains_counter=$((blocked_domains_counter + 1))
             if [ "${blocked_domains_counter}" -eq "${blocked_domains_total}" ]; then unset blocked_domains_line_terminator; fi
-            echo "      dnsDomainIs(host, \"${blocked_domain}\") || shExpMatch(host, \"*.${blocked_domain}\")${blocked_domains_line_terminator}"
+            echo "      dnsDomainIs(host, \"$(echo ${blocked_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${direct_domain} | awk '{print $1}')\")${blocked_domains_line_terminator}"
          done
          echo '      ) return blackhole;'
       fi
@@ -192,7 +192,7 @@ Configure(){
       # "s%return \"PROXY .*%return \"PROXY ${host_ip_address}:3128\"; \"DIRECT\"; }%" \
       # "${home_dir}/proxy.pac"
    echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Wait for Squid to come online..."
-   while [ "$(nc -z squid 3128; echo "${?}")" -ne 0 ]; do
+   while [ "$(nc -z squid 3128; echo $?)" -ne 0 ]; do
       echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Retry in 5 seconds"
       sleep 5
    done
