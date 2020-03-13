@@ -1,3 +1,7 @@
+20200302
+
+ - Change: Error creating blocked domains list
+
 20200218
 
  - Change: direct_domains.txt and blocked_domains.txt now only passes first column so that each domain can have an in-line comment to assist with identification at a later date

@@ -140,7 +140,7 @@ Configure(){
          for blocked_domain in ${blocked_domains}; do
             blocked_domains_counter=$((blocked_domains_counter + 1))
             if [ "${blocked_domains_counter}" -eq "${blocked_domains_total}" ]; then unset blocked_domains_line_terminator; fi
-            echo "      dnsDomainIs(host, \"$(echo ${blocked_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${direct_domain} | awk '{print $1}')\")${blocked_domains_line_terminator}"
+            echo "      dnsDomainIs(host, \"$(echo ${blocked_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${blocked_domain} | awk '{print $1}')\")${blocked_domains_line_terminator}"
          done
          echo '      ) return blackhole;'
       fi
