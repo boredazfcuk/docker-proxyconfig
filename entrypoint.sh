@@ -4,16 +4,17 @@
 Initialise(){
    lan_ip="$(hostname -i)"
    echo -e "\n"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** Configuring httpd container launch environment *****"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Listening address: ${lan_ip}:81"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Home directory: ${home_dir}"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Proxy server IP: ${host_ip_address}"
+   echo "$(date '+%c') INFO:    ***** Configuring httpd container launch environment *****"
+   echo "$(date '+%c') INFO:    $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
+   echo "$(date '+%c') INFO:    Listening address: ${lan_ip}:81"
+   echo "$(date '+%c') INFO:    Home directory: ${home_dir}"
+   echo "$(date '+%c') INFO:    Proxy server IP: ${host_ip_address}"
    if [ ! -f "${home_dir}/local_domains.txt" ] || [ ! -s "${home_dir}/local_domains.txt" ]; then
       echo "$(grep search /etc/resolv.conf | cut -d' ' -f2)" > "${home_dir}/local_domains.txt"
    fi
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Local domains list:"
+   echo "$(date '+%c') INFO:    Local domains list:"
    for local_domain in $(cat "${home_dir}/local_domains.txt"); do
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:       - ${local_domain}"
+      echo "$(date '+%c') INFO:       - ${local_domain}"
    done
    if [ ! -f "${home_dir}/direct_domains.txt" ]; then
       touch "${home_dir}/direct_domains.txt"
@@ -21,12 +22,12 @@ Initialise(){
    if [ -s "${home_dir}/direct_domains.txt" ]; then
       sort -fibu -o "${home_dir}/direct_domains.txt" "${home_dir}/direct_domains.txt"
       sed -i '/^$/d' "${home_dir}/direct_domains.txt"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Direct domains list:"
+      echo "$(date '+%c') INFO:    Direct domains list:"
       for direct_domain in $(cat "${home_dir}/direct_domains.txt"); do
-         echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:       - ${direct_domain}"
+         echo "$(date '+%c') INFO:       - ${direct_domain}"
       done
    else
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Direct domains list file empty, nothing to load"
+      echo "$(date '+%c') INFO:    Direct domains list file empty, nothing to load"
    fi
    if [ ! -f "${home_dir}/blocked_domains.txt" ]; then
       touch "${home_dir}/blocked_domains.txt"
@@ -34,27 +35,27 @@ Initialise(){
    if [ -s "${home_dir}/blocked_domains.txt" ]; then
       sort -fibu -o "${home_dir}/blocked_domains.txt" "${home_dir}/blocked_domains.txt"
       sed -i '/^$/d' "${home_dir}/blocked_domains.txt"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Blocked domains list:"
+      echo "$(date '+%c') INFO:    Blocked domains list:"
       for blocked_domain in $(cat "${home_dir}/blocked_domains.txt"); do
-         echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:       - ${blocked_domain}"
+         echo "$(date '+%c') INFO:       - ${blocked_domain}"
       done
    else
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Blocked domains list file empty, nothing to load"
+      echo "$(date '+%c') INFO:    Blocked domains list file empty, nothing to load"
    fi
    if [ ! -L "/var/log/nginx/access.log" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure access log to log to stdout"
+      echo "$(date '+%c') INFO:    Configure access log to log to stdout"
       if [ -f "/var/log/nginx/access.log" ]; then rm "/var/log/nginx/access.log"; fi
       ln -sf "/dev/stdout" "/var/log/nginx/access.log"
    fi
    if [ ! -L "/var/log/nginx/error.log" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure access log to log to stderr"
+      echo "$(date '+%c') INFO:    Configure access log to log to stderr"
       if [ -f "/var/log/nginx/error.log" ]; then rm "/var/log/nginx/error.log"; fi
       ln -sf "/dev/stderr" "/var/log/nginx/error.log"
    fi
 }
 
 LanLogging(){
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Exclude networks from logging: ${lan_ip}"
+   echo "$(date '+%c') INFO:    Exclude networks from logging: ${lan_ip}"
    {
       echo 'map $remote_addr $ignore_lan_ip {'
       echo "   ${lan_ip} 0;"
@@ -64,7 +65,7 @@ LanLogging(){
 }
 
 Configure(){
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure mime types"
+   echo "$(date '+%c') INFO:    Configure mime types"
    {
       echo 'types {'
          echo '   text/html                           html;'
@@ -75,7 +76,7 @@ Configure(){
          echo '   application/x-x509-ca-cert          der pem cer crt;'
       echo '}'
    } > "/etc/nginx/mime.types"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Building proxy.pac file"
+   echo "$(date '+%c') INFO:    Building proxy.pac file"
    chown -R squid:squid "${home_dir}"
    {
       echo 'function FindProxyForURL(url, host) {'
@@ -176,27 +177,27 @@ Configure(){
       echo '}'
    } >"${home_dir}/proxy.pac"
    if [ ! -L "${home_dir}/wpad.dat" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Create wpad.dat link"
+      echo "$(date '+%c') INFO:    Create wpad.dat link"
       cd "${home_dir}"
       ln -s "./proxy.pac" "wpad.dat"
       cd - >/dev/null
    fi
    if [ ! -L "${home_dir}/wpad.da" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Create wpad.da link"
+      echo "$(date '+%c') INFO:    Create wpad.da link"
       cd "${home_dir}"
       ln -s "./proxy.pac" "wpad.da"
       cd - >/dev/null
    fi
-   # echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure proxy address ${host_ip_address}:3128"
+   # echo "$(date '+%c') INFO:    Configure proxy address ${host_ip_address}:3128"
    # sed -i \
       # "s%return \"PROXY .*%return \"PROXY ${host_ip_address}:3128\"; \"DIRECT\"; }%" \
       # "${home_dir}/proxy.pac"
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Wait for Squid to come online..."
+   echo "$(date '+%c') INFO:    Wait for Squid to come online..."
    while [ "$(nc -z squid 3128; echo $?)" -ne 0 ]; do
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Retry in 5 seconds"
+      echo "$(date '+%c') INFO:    Retry in 5 seconds"
       sleep 5
    done
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Create HTML holding page"
+   echo "$(date '+%c') INFO:    Create HTML holding page"
    {
       echo "<html>"
       echo "   <head/>"
@@ -220,14 +221,14 @@ Configure(){
 }
 
 SetOwner(){
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Set owner of application files"
+   echo "$(date '+%c') INFO:    Set owner of application files"
    chown -R squid:squid "${home_dir}"
 }
 
 LaunchNGINX(){
-   echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** Configuration of NGINX container launch environment complete *****"
+   echo "$(date '+%c') INFO:    ***** Configuration of NGINX container launch environment complete *****"
    if [ -z "${1}" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Starting NGINX"
+      echo "$(date '+%c') INFO:    Starting NGINX"
       exec $(which nginx)
    else
       exec "$@"
