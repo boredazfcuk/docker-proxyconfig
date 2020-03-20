@@ -3,7 +3,7 @@
 ##### Functions #####
 Initialise(){
    lan_ip="$(hostname -i)"
-   echo -e "\n"
+   echo
    echo "$(date '+%c') INFO:    ***** Configuring httpd container launch environment *****"
    echo "$(date '+%c') INFO:    $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
    echo "$(date '+%c') INFO:    Listening address: ${lan_ip}:81"
