@@ -29,6 +29,19 @@ Initialise(){
    else
       echo "$(date '+%c') INFO:    Direct domains list file empty, nothing to load"
    fi
+   if [ ! -f "${home_dir}/direct_urls.txt" ]; then
+      touch "${home_dir}/direct_urls.txt"
+   fi
+   if [ -s "${home_dir}/direct_urls.txt" ]; then
+      sort -fibu -o "${home_dir}/direct_urls.txt" "${home_dir}/direct_urls.txt"
+      sed -i '/^$/d' "${home_dir}/direct_urls.txt"
+      echo "$(date '+%c') INFO:    Direct URL string matches list:"
+      for direct_url in $(cat "${home_dir}/direct_urls.txt"); do
+         echo "$(date '+%c') INFO:       - ${direct_url}"
+      done
+   else
+      echo "$(date '+%c') INFO:    Direct URL string match list file empty, nothing to load"
+   fi
    if [ ! -f "${home_dir}/blocked_domains.txt" ]; then
       touch "${home_dir}/blocked_domains.txt"
    fi
@@ -41,6 +54,45 @@ Initialise(){
       done
    else
       echo "$(date '+%c') INFO:    Blocked domains list file empty, nothing to load"
+   fi
+   if [ ! -f "${home_dir}/proxied_domains.txt" ]; then
+      touch "${home_dir}/proxied_domains.txt"
+   fi
+   if [ -s "${home_dir}/proxied_domains.txt" ]; then
+      sort -fibu -o "${home_dir}/proxied_domains.txt" "${home_dir}/proxied_domains.txt"
+      sed -i '/^$/d' "${home_dir}/proxied_domains.txt"
+      echo "$(date '+%c') INFO:    Proxied domains list:"
+      for proxied_domain in $(cat "${home_dir}/proxied_domains.txt"); do
+         echo "$(date '+%c') INFO:       - ${proxied_domain}"
+      done
+   else
+      echo "$(date '+%c') INFO:    Proxied domains list file empty, nothing to load"
+   fi
+   if [ ! -f "${home_dir}/proxied_urls.txt" ]; then
+      touch "${home_dir}/proxied_urls.txt"
+   fi
+   if [ -s "${home_dir}/proxied_urls.txt" ]; then
+      sort -fibu -o "${home_dir}/proxied_urls.txt" "${home_dir}/proxied_urls.txt"
+      sed -i '/^$/d' "${home_dir}/proxied_urls.txt"
+      echo "$(date '+%c') INFO:    Proxied URLs list:"
+      for proxied_url in $(cat "${home_dir}/proxied_urls.txt"); do
+         echo "$(date '+%c') INFO:       - ${proxied_url}"
+      done
+   else
+      echo "$(date '+%c') INFO:    Proxied URLs string match list file empty, nothing to load"
+   fi
+   if [ ! -f "${home_dir}/proxied_keywords.txt" ]; then
+      touch "${home_dir}/proxied_keywords.txt"
+   fi
+   if [ -s "${home_dir}/proxied_keywords.txt" ]; then
+      sort -fibu -o "${home_dir}/proxied_keywords.txt" "${home_dir}/proxied_keywords.txt"
+      sed -i '/^$/d' "${home_dir}/proxied_keywords.txt"
+      echo "$(date '+%c') INFO:    Proxied key words list:"
+      for proxied_keyword in $(cat "${home_dir}/proxied_keywords.txt"); do
+         echo "$(date '+%c') INFO:       - ${proxied_keyword}"
+      done
+   else
+      echo "$(date '+%c') INFO:    Proxied key word string match list file empty, nothing to load"
    fi
    if [ ! -L "/var/log/nginx/access.log" ]; then
       echo "$(date '+%c') INFO:    Configure access log to log to stdout"
@@ -79,6 +131,7 @@ Configure(){
    echo "$(date '+%c') INFO:    Building proxy.pac file"
    chown -R squid:squid "${home_dir}"
    {
+      echo '// File processed in order. First match dictates action'
       echo 'function FindProxyForURL(url, host) {'
       echo
       echo '   // Configure destinations'
@@ -126,7 +179,22 @@ Configure(){
          for direct_domain in ${direct_domains}; do
             direct_domains_counter=$((direct_domains_counter + 1))
             if [ "${direct_domains_counter}" -eq "${direct_domains_total}" ]; then unset direct_domains_line_terminator; fi
-            echo "      dnsDomainIs(host, \"$(echo ${direct_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${direct_domain} | awk '{print $1}')\")${direct_domains_line_terminator}"
+            echo "      dnsDomainIs(host, \"$(echo ${direct_domain} | awk '{print $1}')\") || dnsDomainIs(host, \".$(echo ${direct_domain} | awk '{print $1}')\")${direct_domains_line_terminator}"
+         done
+         echo '      ) return direct;'
+      fi
+      if [ -s "${home_dir}/direct_urls.txt" ]; then
+         echo
+         echo '   // Direct: URLs'
+         echo '   if ('
+         direct_urls="$(cat "${home_dir}/direct_urls.txt")"
+         direct_urls_line_terminator=" ||"
+         direct_urls_counter=0
+         direct_urls_total="$(echo -n "$direct_urls" | grep -c '^')"
+         for direct_url in ${direct_urls}; do
+            direct_urls_counter=$((direct_urls_counter + 1))
+            if [ "${direct_urls_counter}" -eq "${direct_urls_total}" ]; then unset direct_urls_line_terminator; fi
+            echo "      shExpMatch(url, \"*$(echo ${direct_url} | awk '{print $1}')*\")${direct_urls_line_terminator}"
          done
          echo '      ) return direct;'
       fi
@@ -141,12 +209,70 @@ Configure(){
          for blocked_domain in ${blocked_domains}; do
             blocked_domains_counter=$((blocked_domains_counter + 1))
             if [ "${blocked_domains_counter}" -eq "${blocked_domains_total}" ]; then unset blocked_domains_line_terminator; fi
-            echo "      dnsDomainIs(host, \"$(echo ${blocked_domain} | awk '{print $1}')\") || shExpMatch(host, \"*.$(echo ${blocked_domain} | awk '{print $1}')\")${blocked_domains_line_terminator}"
+            echo "      dnsDomainIs(host, \"$(echo ${blocked_domain} | awk '{print $1}')\") || dnsDomainIs(host, \".$(echo ${blocked_domain} | awk '{print $1}')\")${blocked_domains_line_terminator}"
          done
          echo '      ) return blackhole;'
       fi
       echo
+      echo '   // Proxy bypass: Local Addresses'
+      echo '   if (false) return direct;'
+      echo
+      echo '   // Proxy by traffic type'
+      echo '   if ('
+      echo '      url.substring(0, 6) == "http:"'
+      echo "      ) return squidproxy; direct;"
+      echo '   if ('
+      echo '      url.substring(0,4) == "ftp" ||'
+      echo '      url.substring(0,3) == "mms"'
+      echo '      ) return direct;'
+      if [ -s "${home_dir}/proxied_domains.txt" ]; then
+         echo
+         echo '   // Proxy: Domains'
+         echo '   if ('
+         proxied_domains="$(cat "${home_dir}/proxied_domains.txt")"
+         proxied_domains_line_terminator=" ||"
+         proxied_domains_counter=0
+         proxied_domains_total="$(echo -n "$proxied_domains" | grep -c '^')"
+         for proxied_domain in ${proxied_domains}; do
+            proxied_domains_counter=$((proxied_domains_counter + 1))
+            if [ "${proxied_domains_counter}" -eq "${proxied_domains_total}" ]; then unset proxied_domains_line_terminator; fi
+            echo "      dnsDomainIs(host, \"$(echo ${proxied_domain} | awk '{print $1}')\") || dnsDomainIs(host, \".$(echo ${proxied_domain} | awk '{print $1}')\")${proxied_domains_line_terminator}"
+         done
+         echo '      ) return squidproxy; direct;'
+      fi
+      if [ -s "${home_dir}/proxied_urls.txt" ]; then
+         echo
+         echo '   // Proxy: URLs'
+         echo '   if ('
+         proxied_urls="$(cat "${home_dir}/proxied_urls.txt")"
+         proxied_urls_line_terminator=" ||"
+         proxied_urls_counter=0
+         proxied_urls_total="$(echo -n "$proxied_urls" | grep -c '^')"
+         for proxied_url in ${proxied_urls}; do
+            proxied_urls_counter=$((proxied_urls_counter + 1))
+            if [ "${proxied_urls_counter}" -eq "${proxied_urls_total}" ]; then unset proxied_urls_line_terminator; fi
+            echo "      shExpMatch(url, \"*$(echo ${proxied_url} | awk '{print $1}')\*\")${proxied_urls_line_terminator}"
+         done
+         echo '      ) return squidproxy; direct;'
+      fi
+      if [ -s "${home_dir}/proxied_keywords.txt" ]; then
+         echo
+         echo '   // Proxy: Key words'
+         echo '   if ('
+         proxied_keywords="$(cat "${home_dir}/proxied_keywords.txt")"
+         proxied_keywords_line_terminator=" ||"
+         proxied_keywords_counter=0
+         proxied_keywords_total="$(echo -n "$proxied_keywords" | grep -c '^')"
+         for proxied_keyword in ${proxied_keywords}; do
+            proxied_keywords_counter=$((proxied_keywords_counter + 1))
+            if [ "${proxied_keywords_counter}" -eq "${proxied_keywords_total}" ]; then unset proxied_keywords_line_terminator; fi
+            echo "      shExpMatch(url, \"*$(echo ${proxied_keyword} | awk '{print $1}')*\")${proxied_keywords_line_terminator}"
+         done
+         echo '      ) return squidproxy; direct;'
+      fi
+      echo
       echo '   // Proxy bypass: Non-routable networks'
+      echo '   // DNS Lookups are expensive. Hopfully matched before here'
       echo '   var resolved_ip = dnsResolve(host);'
       echo '   if ('
       echo '      isInNet(resolved_ip, "10.0.0.0", "255.0.0.0") ||'
@@ -157,19 +283,6 @@ Configure(){
       echo '      isInNet(resolved_ip, "198.18.0.0", "255.254.0.0") ||'
       echo '      isInNet(resolved_ip, "224.0.0.0", "240.0.0.0") ||'
       echo '      isInNet(resolved_ip, "240.0.0.0", "240.0.0.0")'
-      echo '      ) return direct;'
-      echo
-      echo '   // Proxy bypass: Local Addresses'
-      echo '   if (false) return direct;'
-      echo
-      echo '   // Proxy by traffic type'
-      echo '   if ('
-      echo '      url.substring(0, 5) == "http:" ||'
-      echo '      url.substring(0, 6) == "https:"'
-      echo "      ) return squidproxy; direct;"
-      echo '   if ('
-      echo '      url.substring(0,4) == "ftp" ||'
-      echo '      url.substring(0,3) == "mms"'
       echo '      ) return direct;'
       echo
       echo '   // Proxy bypass: Not Classified'
@@ -188,10 +301,6 @@ Configure(){
       ln -s "./proxy.pac" "wpad.da"
       cd - >/dev/null
    fi
-   # echo "$(date '+%c') INFO:    Configure proxy address ${host_ip_address}:3128"
-   # sed -i \
-      # "s%return \"PROXY .*%return \"PROXY ${host_ip_address}:3128\"; \"DIRECT\"; }%" \
-      # "${home_dir}/proxy.pac"
    echo "$(date '+%c') INFO:    Wait for Squid to come online..."
    while [ "$(nc -z squid 3128; echo $?)" -ne 0 ]; do
       echo "$(date '+%c') INFO:    Retry in 5 seconds"
