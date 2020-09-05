@@ -6,7 +6,7 @@ Initialise(){
    echo
    echo "$(date '+%c') INFO:    ***** Configuring httpd container launch environment *****"
    echo "$(date '+%c') INFO:    $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
-   echo "$(date '+%c') INFO:    Listening address: ${lan_ip}:81"
+   echo "$(date '+%c') INFO:    Listening address: ${lan_ip}:80"
    echo "$(date '+%c') INFO:    Home directory: ${home_dir}"
    echo "$(date '+%c') INFO:    Proxy server IP: ${host_ip_address}"
    if [ ! -f "${home_dir}/local_domains.txt" ] || [ ! -s "${home_dir}/local_domains.txt" ]; then
@@ -301,11 +301,6 @@ Configure(){
       ln -s "./proxy.pac" "wpad.da"
       cd - >/dev/null
    fi
-   echo "$(date '+%c') INFO:    Wait for Squid to come online..."
-   while [ "$(nc -z squid 3128; echo $?)" -ne 0 ]; do
-      echo "$(date '+%c') INFO:    Retry in 5 seconds"
-      sleep 5
-   done
    echo "$(date '+%c') INFO:    Create HTML holding page"
    {
       echo "<html>"
