@@ -3,7 +3,7 @@ MAINTAINER boredazfcuk
 ARG app_dependencies="nginx tzdata wget"
 ENV home_dir="/var/www/proxy"
 
-RUN echo "$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD STARTED *****" && \
+RUN echo "$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD STARTED FOR PROXYCONFIG *****" && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install application dependencies" && \
    apk add --no-cache --no-progress ${app_dependencies}
 
