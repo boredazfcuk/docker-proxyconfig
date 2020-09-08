@@ -2,13 +2,20 @@
 
 ##### Functions #####
 Initialise(){
+   #IFS=","
    lan_ip="$(hostname -i)"
+   host_name="$(head -1 /etc/hostshosts | awk '{print $2}')"
+   host_ip_address="$(head -1 /etc/hostshosts | awk '{print $3}')"
    echo
    echo "$(date '+%c') INFO:    ***** Configuring httpd container launch environment *****"
    echo "$(date '+%c') INFO:    $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
+   if [ -z "${proxy_ip_addresses}" ]; then echo "$(date '+%c') ERROR:   The proxy_ip_addresses variable has not ben set. Cannot continue - exiting in 2mins"; sleep 120; exit 1; fi
    echo "$(date '+%c') INFO:    Listening address: ${lan_ip}:80"
    echo "$(date '+%c') INFO:    Home directory: ${home_dir}"
-   echo "$(date '+%c') INFO:    Proxy server IP: ${host_ip_address}"
+   echo "$(date '+%c') INFO:    Host's Hostname: ${host_name}"
+   echo "$(date '+%c') INFO:    Host's IP: ${host_ip_address}"
+   echo "$(date '+%c') INFO:    Proxy servers' IP addresses: ${proxy_ip_addresses}"
+   proxy_ip_addresses="${proxy_ip_addresses//,/ }"
    if [ ! -f "${home_dir}/local_domains.txt" ] || [ ! -s "${home_dir}/local_domains.txt" ]; then
       echo "$(grep search /etc/resolv.conf | cut -d' ' -f2)" > "${home_dir}/local_domains.txt"
    fi
@@ -135,8 +142,10 @@ Configure(){
       echo 'function FindProxyForURL(url, host) {'
       echo
       echo '   // Configure destinations'
-      echo "   squidproxy = \"PROXY ${host_ip_address}:3128\";"
-      echo '   blackhole = "PROXY 127.0.0.1:3131";'
+      for proxy_ip_address in ${proxy_ip_addresses}; do
+         count=$((count + 1))
+         echo "   squidproxy${count} = \"PROXY ${proxy_ip_address}:3128\";"
+      done
       echo '   direct = "DIRECT";'
       echo
       echo '   // Convert URLs to lowercase due to case-sensitive matching'
@@ -220,7 +229,14 @@ Configure(){
       echo '   // Proxy by traffic type'
       echo '   if ('
       echo '      url.substring(0, 6) == "http:"'
-      echo "      ) return squidproxy; direct;"
+      echo -n "      ) return "
+      proxy_ip_addresses_counter=0
+      for proxy_ip_address in ${proxy_ip_addresses}; do
+         proxy_ip_addresses_counter=$((proxy_ip_addresses_counter + 1))
+         echo -n "squidproxy${proxy_ip_addresses_counter}; "
+      done
+      echo "direct;"
+      echo
       echo '   if ('
       echo '      url.substring(0,4) == "ftp" ||'
       echo '      url.substring(0,3) == "mms"'
@@ -238,7 +254,13 @@ Configure(){
             if [ "${proxied_domains_counter}" -eq "${proxied_domains_total}" ]; then unset proxied_domains_line_terminator; fi
             echo "      dnsDomainIs(host, \"$(echo ${proxied_domain} | awk '{print $1}')\") || dnsDomainIs(host, \".$(echo ${proxied_domain} | awk '{print $1}')\")${proxied_domains_line_terminator}"
          done
-         echo '      ) return squidproxy; direct;'
+         echo -n "      ) return "
+         proxy_ip_addresses_counter=0
+         for proxy_ip_address in ${proxy_ip_addresses}; do
+            proxy_ip_addresses_counter=$((proxy_ip_addresses_counter + 1))
+            echo -n "squidproxy${proxy_ip_addresses_counter}; "
+         done
+         echo "direct;"
       fi
       if [ -s "${home_dir}/proxied_urls.txt" ]; then
          echo
@@ -253,7 +275,13 @@ Configure(){
             if [ "${proxied_urls_counter}" -eq "${proxied_urls_total}" ]; then unset proxied_urls_line_terminator; fi
             echo "      shExpMatch(url, \"*$(echo ${proxied_url} | awk '{print $1}')\*\")${proxied_urls_line_terminator}"
          done
-         echo '      ) return squidproxy; direct;'
+         echo -n "      ) return "
+         proxy_ip_addresses_counter=0
+         for proxy_ip_address in ${proxy_ip_addresses}; do
+            proxy_ip_addresses_counter=$((proxy_ip_addresses_counter + 1))
+            echo -n "squidproxy${proxy_ip_addresses_counter}; "
+         done
+         echo "direct;"
       fi
       if [ -s "${home_dir}/proxied_keywords.txt" ]; then
          echo
@@ -268,7 +296,13 @@ Configure(){
             if [ "${proxied_keywords_counter}" -eq "${proxied_keywords_total}" ]; then unset proxied_keywords_line_terminator; fi
             echo "      shExpMatch(url, \"*$(echo ${proxied_keyword} | awk '{print $1}')*\")${proxied_keywords_line_terminator}"
          done
-         echo '      ) return squidproxy; direct;'
+         echo -n "      ) return "
+         proxy_ip_addresses_counter=0
+         for proxy_ip_address in ${proxy_ip_addresses}; do
+            proxy_ip_addresses_counter=$((proxy_ip_addresses_counter + 1))
+            echo -n "squidproxy${proxy_ip_addresses_counter}; "
+         done
+         echo "direct;"
       fi
       echo
       echo '   // Proxy bypass: Non-routable networks'
@@ -291,15 +325,15 @@ Configure(){
    } >"${home_dir}/proxy.pac"
    if [ ! -L "${home_dir}/wpad.dat" ]; then
       echo "$(date '+%c') INFO:    Create wpad.dat link"
-      cd "${home_dir}"
+      cd "${home_dir}" || exit 1
       ln -s "./proxy.pac" "wpad.dat"
-      cd - >/dev/null
+      cd - >/dev/null || exit 1
    fi
    if [ ! -L "${home_dir}/wpad.da" ]; then
       echo "$(date '+%c') INFO:    Create wpad.da link"
-      cd "${home_dir}"
+      cd "${home_dir}" || exit 1
       ln -s "./proxy.pac" "wpad.da"
-      cd - >/dev/null
+      cd - >/dev/null  || exit 1
    fi
    echo "$(date '+%c') INFO:    Create HTML holding page"
    {
@@ -333,7 +367,7 @@ LaunchNGINX(){
    echo "$(date '+%c') INFO:    ***** Configuration of NGINX container launch environment complete *****"
    if [ -z "${1}" ]; then
       echo "$(date '+%c') INFO:    Starting NGINX"
-      exec $(which nginx)
+      exec /usr/sbin/nginx
    else
       exec "$@"
    fi
