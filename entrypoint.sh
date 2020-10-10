@@ -358,9 +358,10 @@ Configure(){
    } >"${home_dir}/index.html"
 }
 
-SetOwner(){
+SetOwnerAndPermissions(){
    echo "$(date '+%c') INFO:    Set owner of application files"
    chown -R squid:squid "${home_dir}"
+   chmod -R +r "${home_dir}"
 }
 
 LaunchNGINX(){
@@ -377,5 +378,5 @@ LaunchNGINX(){
 Initialise
 LanLogging
 Configure
-SetOwner
+SetOwnerAndPermissions
 LaunchNGINX
