@@ -1,4 +1,4 @@
-FROM alpine:3.13.5
+FROM alpine:3.14
 MAINTAINER boredazfcuk
 ARG app_dependencies="nginx tzdata wget"
 ENV home_dir="/var/www/proxy"
